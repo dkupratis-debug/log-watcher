@@ -1,0 +1,4 @@
+2024-03-01 12:00:00,123 ERROR app.worker: job failed
+2024-03-01 12:00:01,000 WARNING app.api: slow response
+2024-03-01 12:00:02,500 INFO app.api: request finished
+2024-03-01 12:00:03,250 DEBUG app.api: extra: detail

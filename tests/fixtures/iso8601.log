@@ -1,0 +1,8 @@
+2024-03-01T12:00:00Z ERROR connection refused
+2024-03-01T12:00:01.123Z WARN cache warming
+2024-03-01T12:00:02+00:00 WARNING retry scheduled
+2024-03-01T13:00:03.500000-05:00 CRITICAL out of memory
+2024-03-01T18:00:04Z FATAL cannot bind port
+2024-03-01T18:00:05Z INFO ready
+2024-03-01T18:00:06Z DEBUG handshake complete
+2024-03-01 18:00:07Z notice quiet line

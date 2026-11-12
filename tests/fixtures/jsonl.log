@@ -1,0 +1,4 @@
+{"ts": "2024-03-01T12:00:00Z", "level": "ERROR", "message": "disk full"}
+{"timestamp": "2024-03-01T12:00:01+00:00", "severity": "warning", "msg": "retrying"}
+{"ts": "2024-03-01T12:00:02Z", "level": "info", "message": "started"}
+{"timestamp": "2024-03-01 12:00:03,123", "severity": "CRITICAL", "message": "aborted"}
