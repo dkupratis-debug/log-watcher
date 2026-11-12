@@ -31,6 +31,7 @@ Only the Python standard library is used.
 
 from __future__ import annotations
 
+import bisect
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -218,41 +219,63 @@ def _spikes_for_type(
 
     Each bucket is compared with the median of the other counts only.
     Including itself would let a burst raise its own baseline.
+
+    The counts are sorted once. Each baseline is then the middle of that
+    list with one copy of the candidate removed, so a long steady history
+    does not sort again for every window.
     """
     found: list[Spike] = []
-    for index, start in enumerate(starts):
-        count = series[index]
+    ordered = sorted(series)
+    for start, count in zip(starts, series, strict=True):
         if count < min_count:
             continue
-        others = series[:index] + series[index + 1 :]
         # Exactly K times the baseline still counts: the rule is "at least".
-        if _clears_baseline(count, others, multiplier):
+        baseline, clears = _baseline_without(ordered, count, multiplier)
+        if clears:
             found.append(
                 Spike(
                     error_type=error_type,
                     window_start=start,
                     window_end=start + window,
                     count=count,
-                    baseline_median=_median(others),
+                    baseline_median=baseline,
                 )
             )
     return found
 
 
-def _clears_baseline(count: int, others: list[int], multiplier: int | float) -> bool:
-    """True when ``count`` is at least ``multiplier`` times the median.
+def _baseline_without(
+    ordered: list[int],
+    count: int,
+    multiplier: int | float,
+) -> tuple[float, bool]:
+    """Median of ``ordered`` without one ``count``, and whether it is cleared.
 
-    An even number of other buckets has a baseline halfway between the two
-    middle counts. Compare ``count * 2`` with ``multiplier * (low + high)``
+    ``ordered`` holds every bucket for this type. Equal counts sit together,
+    and the median only depends on values, so dropping any one copy of
+    ``count`` is the same as dropping this bucket.
+
+    An even number of remaining buckets has a baseline halfway between the
+    two middle counts. Compare ``count * 2`` with ``multiplier * (low + high)``
     so an integer multiplier stays on whole numbers instead of a fraction
     such as 1.5.
     """
-    ordered = sorted(others)
-    middle = len(ordered) // 2
-    if len(ordered) % 2 == 1:
-        return count >= multiplier * ordered[middle]
-    low_high = ordered[middle - 1] + ordered[middle]
-    return count * 2 >= multiplier * low_high
+    skipped = bisect.bisect_left(ordered, count)
+    remaining = len(ordered) - 1
+    middle = remaining // 2
+    if remaining % 2 == 1:
+        baseline = _value_skipping(ordered, skipped, middle)
+        return float(baseline), count >= multiplier * baseline
+    low = _value_skipping(ordered, skipped, middle - 1)
+    high = _value_skipping(ordered, skipped, middle)
+    return (low + high) / 2, count * 2 >= multiplier * (low + high)
+
+
+def _value_skipping(ordered: list[int], skipped: int, index: int) -> int:
+    """Value at ``index`` in ``ordered`` after deleting ``ordered[skipped]``."""
+    if index < skipped:
+        return ordered[index]
+    return ordered[index + 1]
 
 
 def _median(values: list[int]) -> float:

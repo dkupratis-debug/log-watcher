@@ -452,6 +452,24 @@ def test_fractional_multiplier() -> None:
     assert report.spikes[0].baseline_median == 2.0
 
 
+def test_leave_one_out_median_with_many_equal_windows() -> None:
+    # Eleven windows of 4, then one window of 40. The burst's baseline is 4.
+    # A normal window's other counts are nine 4s and a 40, so its two middle
+    # values are both 4 and it is not itself a spike.
+    records = _series([4] * 11 + [40])
+    report = detect_spikes(records)
+    assert report.repeated == ()
+    assert report.spikes == (
+        Spike(
+            error_type="connection refused",
+            window_start=_at(55),
+            window_end=_at(60),
+            count=40,
+            baseline_median=4.0,
+        ),
+    )
+
+
 def test_even_median_averages_the_two_middle_counts() -> None:
     # Others for 10 are 2 and 4. The two middle values are both of them.
     report = detect_spikes(_series([2, 4, 10]))
