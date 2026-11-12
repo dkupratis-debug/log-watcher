@@ -107,9 +107,9 @@ repeated: 1
 
 `connection refused` in the 12:15 window has count 6. The median of its other windows is 1, and 6 is at least 3 times that baseline, so the window is a spike. `disk full` stays at 3 in every window. That meets the minimum of 3, and 3 is below 3 times the median of the other windows, so it is reported as repeated.
 
-[`docs/spike-demo.svg`](docs/spike-demo.svg) is a terminal recording of the same command, rendered with [termtosvg](https://github.com/nbedos/termtosvg). The session shows the shell prompt, the command, and the standard output above. The still is the last frame of that recording.
+[`docs/spike-demo.svg`](docs/spike-demo.svg) and the still below are that session, drawn in DejaVu Sans Mono with each character on a fixed grid. The shell prompt and the command are shown around the standard output above, including its indentation.
 
-![Last frame of the demo recording](docs/spike-demo.png)
+![Demo session in a monospace terminal](docs/spike-demo.png)
 
 ## Tests
 
