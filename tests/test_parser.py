@@ -283,6 +283,16 @@ def test_leading_whitespace_does_not_prevent_a_match() -> None:
     assert record.raw == raw
 
 
+def test_iso_nanosecond_fraction_is_parsed() -> None:
+    result = parse_log(["2024-03-01T12:00:00.123456789Z ERROR fine clock"])
+    assert result.skipped == 0
+    assert result.records[0].timestamp == datetime(
+        2024, 3, 1, 12, 0, 0, 123456, tzinfo=UTC
+    )
+    assert result.records[0].message == "fine clock"
+    assert result.records[0].kind == "error"
+
+
 def test_impossible_timestamp_is_skipped() -> None:
     lines = [
         "2024-13-01T12:00:00Z ERROR not a real month",
@@ -383,6 +393,17 @@ def test_json_fractional_epoch_seconds() -> None:
     assert record.level == "INFO"
     assert record.message == "half"
     assert record.kind == "context"
+
+
+def test_huge_numeric_timestamp_is_skipped() -> None:
+    huge = "1" * 310
+    lines = [
+        f'{{"ts": {huge}, "level": "ERROR", "message": "too big"}}',
+        '{"ts": "2024-03-01T12:00:00Z", "level": "INFO", "message": "kept"}',
+    ]
+    result = parse_log(lines)
+    assert result.skipped == 1
+    assert [record.message for record in result.records] == ["kept"]
 
 
 def test_json_bool_timestamp_is_skipped() -> None:

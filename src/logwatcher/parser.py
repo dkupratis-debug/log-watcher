@@ -76,11 +76,13 @@ _SYSLOG_RE = re.compile(
 )
 
 # 2024-03-01T12:00:00.123Z ERROR connection refused
-# Fractional seconds and the timezone are optional. A comma is not
-# accepted here; that form belongs to the syslog shape above.
+# Fractional seconds and the timezone are optional. More than six
+# fractional digits are still a match; datetime.fromisoformat keeps the
+# first six (microseconds) and ignores the rest. A comma is not accepted
+# here; that form belongs to the syslog shape above.
 _ISO_RE = re.compile(
     r"(?P<ts>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"
-    r"(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})?)"
+    r"(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)"
     r"[ \t]+(?P<level>[A-Za-z]+)"
     r"(?:[ \t]+(?P<message>.*))?"
 )
@@ -303,10 +305,12 @@ def _parse_timestamp(value: object) -> datetime | None:
     # bool is a subclass of int. JSON true/false must not become a timestamp.
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    seconds = float(value)
-    if abs(seconds) >= _EPOCH_MILLIS_THRESHOLD:
-        seconds /= 1000.0
+    # A huge integer (hundreds of digits) overflows float() itself. That is
+    # an unmatched timestamp, not a reason to stop reading the rest of the file.
     try:
+        seconds = float(value)
+        if abs(seconds) >= _EPOCH_MILLIS_THRESHOLD:
+            seconds /= 1000.0
         return datetime.fromtimestamp(seconds, tz=UTC)
     except (OverflowError, OSError, ValueError):
         return None
