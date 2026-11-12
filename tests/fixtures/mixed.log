@@ -1,0 +1,6 @@
+2024-03-01T12:00:00Z ERROR connection refused
+
+not a log line
+2024-03-01 12:05:00,000 WARNING app.api: slow response
+{broken
+{"ts": "2024-03-01T12:06:00Z", "level": "INFO", "message": "up"}
