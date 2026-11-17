@@ -93,6 +93,25 @@ class SpikeReport:
     repeated: tuple[RepeatedType, ...]
 
 
+def window_for(
+    moment: datetime,
+    window: timedelta = DEFAULT_WINDOW,
+) -> tuple[datetime, datetime]:
+    """Return ``(start, end)`` of the fixed window that contains ``moment``.
+
+    ``end`` is exclusive, matching ``Spike.window_end``. The start uses the
+    same epoch alignment as ``detect_spikes``, so a timestamp falls in the
+    same window in both places. A naive ``moment`` is read as UTC.
+
+    Raises:
+        ValueError: ``window`` is not a positive ``timedelta``.
+    """
+    if not isinstance(window, timedelta) or window <= timedelta(0):
+        raise ValueError("window must be a positive timedelta")
+    start = _bucket_start(moment, window)
+    return start, start + window
+
+
 def detect_spikes(
     records: Iterable[LogRecord],
     *,

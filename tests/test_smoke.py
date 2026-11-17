@@ -9,7 +9,7 @@ from importlib.metadata import distribution
 import pytest
 
 import logwatcher
-from logwatcher.__main__ import USAGE_HINT, main
+from logwatcher.__main__ import main
 
 
 def test_package_imports() -> None:
@@ -30,12 +30,13 @@ def test_no_runtime_dependencies() -> None:
     assert runtime == []
 
 
-def test_main_prints_usage_hint_and_exits_zero(
+def test_main_without_arguments_prints_help(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert main([]) == 0
     captured = capsys.readouterr()
-    assert captured.out.strip() == USAGE_HINT
+    assert "usage: logwatcher" in captured.out.lower()
+    assert "follow" in captured.out.lower()
     assert captured.err == ""
 
 

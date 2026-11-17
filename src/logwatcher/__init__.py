@@ -2,8 +2,8 @@
 
 ``parse_log`` reads a text log or a JSON Lines log into structured records.
 ``detect_spikes`` flags a sudden burst of errors and reports a steady high
-rate as repeated. Pattern detection is not implemented yet, and the
-command-line tool does not read log files yet.
+rate as repeated. The ``logwatcher`` command scans saved logs and can follow
+a file as it grows. Pattern detection is not implemented yet.
 """
 
 from __future__ import annotations

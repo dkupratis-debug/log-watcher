@@ -1,7 +1,7 @@
 """Print parse and spike results for one log file.
 
-This is a demo of the library. It is not the product command.
-``logwatcher scan`` is not implemented yet.
+This is a demo of the library calls. The ``logwatcher`` command is the
+interface that scans files and follows a growing log.
 """
 
 from __future__ import annotations
