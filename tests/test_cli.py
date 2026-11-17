@@ -320,6 +320,23 @@ def test_interval_must_be_positive(capsys: pytest.CaptureFixture[str]) -> None:
     assert "Traceback" not in captured.err
 
 
+def test_scan_refuses_to_overwrite_its_log(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "app.log"
+    original = "2024-03-01T12:00:00Z ERROR keep\n"
+    path.write_text(original, encoding="utf-8")
+    link = tmp_path / "alias.log"
+    link.symlink_to(path)
+    assert main([str(path), "-o", str(link)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("logwatcher: ")
+    assert "Traceback" not in captured.err
+    assert path.read_text(encoding="utf-8") == original
+
+
 def test_unwritable_output_exits_2(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

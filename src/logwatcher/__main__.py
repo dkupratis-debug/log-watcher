@@ -17,8 +17,9 @@ import math
 import signal
 import sys
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
+from pathlib import Path
 from typing import TextIO
 
 from logwatcher.follow import LineReader, follow_path
@@ -121,6 +122,8 @@ def _run_scan(options: argparse.Namespace) -> int:
     except (OSError, ParseError) as exc:
         return _fail(str(exc))
     text = format_reports(reports, options.format)
+    if options.output is not None and _aliases_log(options.output, options.paths):
+        return _fail("refusing to write the report over a log file")
     if options.output is None:
         sys.stdout.write(text)
         sys.stdout.flush()
@@ -148,6 +151,8 @@ def _run_follow(
     max_polls: int | None,
     reader: LineReader | None,
 ) -> int:
+    if options.output is not None and _aliases_log(options.output, options.paths):
+        return _fail("refusing to write the report over a log file")
     output, close_output = _open_output(options.output)
     if isinstance(output, str):
         # _open_output returns an error message instead of a stream.
@@ -192,6 +197,33 @@ def _open_output(path: str | None) -> tuple[TextIO, bool] | tuple[str, bool]:
     except OSError as exc:
         return f"Cannot write output: {path} ({exc.strerror})", False
     return handle, True
+
+
+def _aliases_log(output: str, sources: Sequence[str]) -> bool:
+    """True when ``output`` is one of the logs, or a link to one of them.
+
+    Opening that path for writing would truncate the file being read.
+    ``resolve`` follows a symlink. The device and inode catch a hard link,
+    which stays a different path.
+    """
+    destination = Path(output)
+    for source in sources:
+        if _same_file(Path(source), destination):
+            return True
+    return False
+
+
+def _same_file(left: Path, right: Path) -> bool:
+    if left.resolve() == right.resolve():
+        return True
+    try:
+        left_stat = left.stat()
+        right_stat = right.stat()
+    except OSError:
+        return False
+    same_inode = left_stat.st_ino == right_stat.st_ino
+    same_device = left_stat.st_dev == right_stat.st_dev
+    return same_inode and same_device
 
 
 def _fail(message: str) -> int:

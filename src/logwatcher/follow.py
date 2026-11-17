@@ -89,6 +89,11 @@ class FileTail:
         chunk = self._file.read()
         if not chunk:
             return []
+        # An empty file snapshots a zero-byte prefix. Comparing that many
+        # bytes can never see a later rewrite, so once the file has grown,
+        # replace the short snapshot with the bytes now at the start.
+        if len(self._head) < _HEAD_BYTES:
+            self._remember_prefix(self._file)
         text = self._decoder.decode(chunk)
         return self._completed_lines(text)
 
@@ -193,7 +198,9 @@ class FileTail:
 
         Appending leaves the prefix in place. A rewrite that is already
         larger than our offset still changes the prefix, which is how a
-        truncation we did not poll in time is noticed.
+        truncation we did not poll in time is noticed. The snapshot grows
+        with the file, up to ``_HEAD_BYTES``, so a log that started empty
+        is not compared as zero bytes after the first lines arrive.
         """
         assert self._file is not None
         if not self._has_head:

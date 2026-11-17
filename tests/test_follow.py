@@ -7,6 +7,7 @@ fail, so a poll loop that forgot to use the injected sleep cannot pass.
 from __future__ import annotations
 
 import json
+import os
 import signal
 from datetime import UTC, datetime
 from pathlib import Path
@@ -235,6 +236,62 @@ def test_partial_line_waits_for_a_newline(
     output = capsys.readouterr().out
     assert "hello" in output
     assert output.count("error:") == 1
+
+
+def test_empty_log_notices_a_same_length_rewrite(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # An empty file snapshots zero prefix bytes. After one line arrives,
+    # a rewrite of that same length must still be read.
+    path = tmp_path / "app.log"
+    path.write_text("", encoding="utf-8")
+    first = _error(0, "aaa")
+    second = _error(5, "bbb")
+    assert len(first) == len(second)
+    step = {"n": 0}
+
+    def sleep(_seconds: float) -> None:
+        if step["n"] == 0:
+            path.write_text(first + "\n", encoding="utf-8")
+            step["n"] = 1
+            return
+        if step["n"] == 1:
+            path.write_text(second + "\n", encoding="utf-8")
+            step["n"] = 2
+            return
+        raise KeyboardInterrupt
+
+    assert main(["-f", str(path)], sleep=sleep, clock=lambda: FUTURE) == 0
+    output = capsys.readouterr().out
+    assert output.count("aaa") == 1
+    assert "bbb" in output
+
+
+def test_empty_log_append_is_not_reread(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "app.log"
+    path.write_text("", encoding="utf-8")
+    step = {"n": 0}
+
+    def sleep(_seconds: float) -> None:
+        if step["n"] == 0:
+            path.write_text(_error(0, "aaa") + "\n", encoding="utf-8")
+            step["n"] = 1
+            return
+        if step["n"] == 1:
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(_error(5, "bbb") + "\n")
+            step["n"] = 2
+            return
+        raise KeyboardInterrupt
+
+    assert main(["-f", str(path)], sleep=sleep, clock=lambda: FUTURE) == 0
+    output = capsys.readouterr().out
+    assert output.count("aaa") == 1
+    assert output.count("bbb") == 1
 
 
 def test_file_created_after_start_is_read(
@@ -478,6 +535,69 @@ def test_interval_is_passed_to_sleep(
     )
     assert status == 0
     assert seen == [0.2]
+
+
+def _refuse_output(path: Path, output: Path) -> int:
+    original = path.read_text(encoding="utf-8")
+
+    def sleep(_seconds: float) -> None:
+        raise AssertionError("follow started")
+
+    status = main(
+        ["-f", str(path), "-o", str(output)],
+        sleep=sleep,
+        clock=lambda: FUTURE,
+    )
+    assert path.read_text(encoding="utf-8") == original
+    return status
+
+
+def test_follow_refuses_to_overwrite_the_log(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "app.log"
+    path.write_text(_error(0, "keep") + "\n", encoding="utf-8")
+    assert _refuse_output(path, path) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("logwatcher: ")
+    assert "Traceback" not in captured.err
+
+
+def test_follow_refuses_a_symlink_to_the_log(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "app.log"
+    path.write_text(_error(0, "keep") + "\n", encoding="utf-8")
+    link = tmp_path / "alias.log"
+    link.symlink_to(path)
+    assert _refuse_output(path, link) == 2
+    assert capsys.readouterr().err.startswith("logwatcher: ")
+
+
+def test_follow_refuses_a_hard_link_to_the_log(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "app.log"
+    path.write_text(_error(0, "keep") + "\n", encoding="utf-8")
+    hard = tmp_path / "hard.log"
+    os.link(path, hard)
+    assert _refuse_output(path, hard) == 2
+    assert capsys.readouterr().err.startswith("logwatcher: ")
+
+
+def test_follow_refuses_a_relative_alias_of_the_log(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "app.log"
+    path.write_text(_error(0, "keep") + "\n", encoding="utf-8")
+    relative = Path(os.path.relpath(path))
+    assert _refuse_output(path.resolve(), relative) == 2
+    assert capsys.readouterr().err.startswith("logwatcher: ")
 
 
 def test_follow_rejects_more_than_one_file(
