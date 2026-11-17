@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "logwatcher"
 version = "0.1.0"
-description = "Watch logs and report notable events. Work in progress."
+description = "Watch logs and report error spikes."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

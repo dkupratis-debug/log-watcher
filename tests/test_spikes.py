@@ -22,6 +22,7 @@ from logwatcher.spikes import (
     Spike,
     SpikeReport,
     detect_spikes,
+    window_for,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -508,6 +509,18 @@ def test_window_before_the_epoch_floors_downward() -> None:
 def test_calling_twice_returns_the_same_report() -> None:
     records = _series([1, 1, 9])
     assert detect_spikes(records) == detect_spikes(records)
+
+
+def test_window_for_uses_the_same_alignment_as_detect_spikes() -> None:
+    # 12:07 sits in the window that opened at 12:05, the same bucket a
+    # spike report would use for that timestamp.
+    start, end = window_for(_at(7))
+    assert start == _at(5)
+    assert end == _at(10)
+    naive = datetime(2024, 3, 1, 12, 7)
+    naive_start, naive_end = window_for(naive)
+    assert naive_start == _at(5)
+    assert naive_end == _at(10)
 
 
 def test_defaults_match_the_documented_constants() -> None:
